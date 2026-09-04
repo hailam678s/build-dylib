@@ -1,4 +1,11 @@
-name: Build iOS Dylib (Stable One-File Fix)
+# ============================================
+# FILE: .github/workflows/build.yml
+# ============================================
+# GIẢI PHÁP TRIỆT ĐỂ: KHÔNG TẢI SDK
+# DÙNG SDK CÓ SẴN TRONG MACOS RUNNER
+# HOẶC DÙNG CÁCH BUILD TRỰC TIẾP BẰNG CLANG
+
+name: Build iOS Dylib
 
 on:
   workflow_dispatch:
@@ -10,89 +17,68 @@ jobs:
   build:
     runs-on: macos-latest
 
-    env:
-      THEOS: ${{ github.workspace }}/theos
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+      - name: Lay ma nguon
+        uses: actions/checkout@v5
 
-      - name: Install dependencies
+      - name: Kiem tra workspace
         run: |
-          brew update || true
-          brew install make || true
-
-      - name: Setup Theos (safe mode)
-        run: |
-          set +e
-
-          echo "Cloning Theos..."
-          git clone --recursive https://github.com/theos/theos.git $THEOS
-
-          echo "Setting PATH..."
-          echo "THEOS=$THEOS" >> $GITHUB_ENV
-          echo "PATH=$THEOS/bin:$PATH" >> $GITHUB_ENV
-
-          mkdir -p $THEOS/sdks
-
-          echo "Trying SDK repo..."
-          git clone https://github.com/theos/sdks.git $THEOS/sdks_repo || true
-
-          if [ -d "$THEOS/sdks_repo" ]; then
-            cp -R $THEOS/sdks_repo/*.sdk $THEOS/sdks/ 2>/dev/null || true
-          fi
-
-          echo "SDK list:"
-          ls -la $THEOS/sdks || true
-
-      - name: Prepare project (auto fix)
-        run: |
-          set -e
-
-          PROJECT=$HOME/project/MenuDylib
-          mkdir -p $PROJECT
-
-          cat > $PROJECT/Makefile << 'EOF'
-export ARCHS = arm64
-export TARGET = iphone:clang:12.0
-
-include $(THEOS)/makefiles/common.mk
-
-LIBRARY_NAME = MenuDylib
-MenuDylib_FILES = MenuDylib.m
-MenuDylib_FRAMEWORKS = UIKit Foundation
-MenuDylib_LDFLAGS = -dynamiclib
-
-include $(THEOS_MAKE_PATH)/library.mk
-EOF
-
-          if [ -f "$GITHUB_WORKSPACE/MenuDylib.m" ]; then
-            cp $GITHUB_WORKSPACE/MenuDylib.m $PROJECT/MenuDylib.m
+          echo "=== DANH SACH FILE ==="
+          ls -la
+          if [ -f "MenuDylib.m" ]; then
+            echo "FILE MenuDylib.m TON TAI"
           else
-            echo "ERROR: MenuDylib.m NOT FOUND"
-            echo "Creating empty fallback file..."
-            echo "void test(){}" > $PROJECT/MenuDylib.m
+            echo "FILE MenuDylib.m KHONG TON TAI"
           fi
 
-      - name: Build (never crash pipeline)
-        continue-on-error: true
+      - name: Build truc tiep bang clang
         run: |
-          set +e
+          echo "=== KIEM TRA CLANG ==="
+          which clang
+          clang --version
+          
+          echo "=== KIEM TRA SDK iOS TRONG HE THONG ==="
+          ls -la /Applications/Xcode*.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/ 2>/dev/null || echo "Khong tim thay Xcode"
+          
+          echo "=== TIM SDK iOS ==="
+          find /Applications -name "iPhoneOS*.sdk" -type d 2>/dev/null | head -5
+          
+          echo "=== BUILD TRUC TIEP BANG CLANG ==="
+          cd ${GITHUB_WORKSPACE}
+          
+          # Tim SDK iOS
+          SDK_PATH=$(find /Applications -name "iPhoneOS*.sdk" -type d 2>/dev/null | head -1)
+          
+          if [ -z "$SDK_PATH" ]; then
+            echo "KHONG TIM THAY SDK iOS"
+            echo "THU BUILD VOI MACOS SDK"
+            clang -dynamiclib \
+              -arch arm64 \
+              -isysroot $(xcrun --sdk macosx --show-sdk-path) \
+              -framework UIKit \
+              -framework Foundation \
+              -framework ObjectiveC \
+              -o MenuDylib.dylib \
+              MenuDylib.m
+          else
+            echo "TIM THAY SDK: $SDK_PATH"
+            clang -dynamiclib \
+              -arch arm64 \
+              -isysroot "$SDK_PATH" \
+              -framework UIKit \
+              -framework Foundation \
+              -framework ObjectiveC \
+              -o MenuDylib.dylib \
+              MenuDylib.m
+          fi
+          
+          echo "=== KIEM TRA KET QUA BUILD ==="
+          ls -la *.dylib 2>/dev/null || echo "KHONG CO FILE DYLIB"
 
-          cd $HOME/project/MenuDylib
-
-          echo "Starting build..."
-          make package
-
-          echo "Searching output..."
-          find $HOME -name "*.dylib" -o -name "*.deb" || true
-
-      - name: Upload artifact (always safe)
-        if: always()
+      - name: Tai file dylib
         uses: actions/upload-artifact@v4
         with:
-          name: MenuDylib-Build
+          name: MenuDylib
           path: |
             **/*.dylib
-            **/*.deb
-          if-no-files-found: warn
+          if-no-files-found: error
