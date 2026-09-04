@@ -1,8 +1,12 @@
+# ============================================
+# FILE 1: .github/workflows/build.yml
+# ============================================
+# Đã sửa: Dùng actions/checkout@v5 (Node.js 24)
+# Bỏ hoàn toàn brew install
+# Tải SDK từ nguồn tin cậy
 
-# ============================================
-# FILE: .github/workflows/build.yml
-# ============================================
 name: Build iOS Dylib
+
 on:
   workflow_dispatch:
   push:
@@ -12,9 +16,10 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+
     steps:
       - name: Lay ma nguon
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Kiem tra workspace
         run: |
@@ -25,15 +30,14 @@ jobs:
             echo "FILE MenuDylib.m TON TAI"
             wc -l MenuDylib.m
           else
-            echo "LOI: FILE MenuDylib.m KHONG TON TAI TRONG REPO"
-            echo "Ban can commit file nay vao goc repo truoc khi build."
-            exit 1
+            echo "FILE MenuDylib.m KHONG TON TAI"
           fi
 
       - name: Cai dat Theos
         run: |
           echo "=== CLONE THEOS ==="
           git clone --recursive https://github.com/theos/theos.git ${HOME}/theos
+
           echo "THEOS=${HOME}/theos" >> $GITHUB_ENV
           echo "PATH=${HOME}/theos/bin:${PATH}" >> $GITHUB_ENV
 
@@ -41,18 +45,13 @@ jobs:
           mkdir -p ${HOME}/theos/sdks
           cd ${HOME}/theos/sdks
 
-          SDK_TAG="master-146e41f"
-          SDK_VERSION="16.5"
-          SDK_URL="https://github.com/theos/sdks/releases/download/${SDK_TAG}/iPhoneOS${SDK_VERSION}.sdk.tar.xz"
-
-          echo "Dang tai: ${SDK_URL}"
-          curl -fL --retry 3 --retry-delay 5 -o sdk.tar.xz "${SDK_URL}"
+          curl -L -o sdk.tar.xz https://github.com/ProcursusTeam/sdks/releases/download/15.5/iPhoneOS15.5.sdk.tar.xz
 
           KICH_THUOC=$(stat -f%z sdk.tar.xz 2>/dev/null || echo "0")
           echo "Kich thuoc SDK: ${KICH_THUOC} bytes"
+
           if [ "$KICH_THUOC" -lt 10000000 ]; then
-            echo "LOI: SDK tai that bai (file qua nho, co the la trang loi)"
-            cat sdk.tar.xz | head -c 300
+            echo "LOI: SDK tai that bai"
             exit 1
           fi
 
@@ -71,18 +70,26 @@ jobs:
           echo "=== TAO MAKEFILE ==="
           cat > ${HOME}/du_an/MenuDylib/Makefile << 'EOF'
           export ARCHS = arm64
-          export TARGET = iphone:clang:16.5:12.0
+          export TARGET = iphone:clang:12.0
+
           include $(THEOS)/makefiles/common.mk
+
           LIBRARY_NAME = MenuDylib
           MenuDylib_FILES = MenuDylib.m
           MenuDylib_FRAMEWORKS = UIKit Foundation
           MenuDylib_LDFLAGS = -dynamiclib
+
           include $(THEOS_MAKE_PATH)/library.mk
           EOF
 
           echo "=== COPY MA NGUON ==="
-          cp ${GITHUB_WORKSPACE}/MenuDylib.m ${HOME}/du_an/MenuDylib/MenuDylib.m
-          echo "DA COPY MenuDylib.m"
+          if [ -f "${GITHUB_WORKSPACE}/MenuDylib.m" ]; then
+            cp ${GITHUB_WORKSPACE}/MenuDylib.m ${HOME}/du_an/MenuDylib/MenuDylib.m
+            echo "DA COPY MenuDylib.m"
+          else
+            echo "LOI: KHONG TIM THAY MenuDylib.m TRONG REPO"
+            exit 1
+          fi
 
           echo "=== NOI DUNG MAKEFILE ==="
           cat ${HOME}/du_an/MenuDylib/Makefile
@@ -92,6 +99,7 @@ jobs:
           echo "=== BAT DAU BUILD ==="
           cd ${HOME}/du_an/MenuDylib
           make package 2>&1
+
           echo "=== KIEM TRA KET QUA ==="
           find ${HOME}/du_an -name "*.dylib" -type f
 
