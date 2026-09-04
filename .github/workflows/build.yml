@@ -2,7 +2,9 @@
 # FILE: .github/workflows/build.yml
 # ============================================
 # BUILD DYLIB BẰNG CLANG TRỰC TIẾP
-# DÙNG CHO ESIGN IOS
+# KHÔNG CẦN THEOS
+# KHÔNG CẦN TẢI SDK
+# DÙNG SDK CÓ SẴN TRONG XCODE
 
 name: Build iOS Dylib
 
@@ -38,7 +40,6 @@ jobs:
             -Wno-deprecated-declarations \
             -framework UIKit \
             -framework Foundation \
-            -framework QuartzCore \
             -o MenuDylib.dylib \
             MenuDylib.m
           
