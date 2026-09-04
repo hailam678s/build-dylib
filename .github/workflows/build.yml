@@ -1,9 +1,10 @@
 # ============================================
 # FILE: .github/workflows/build.yml
 # ============================================
-# GIẢI PHÁP TRIỆT ĐỂ: KHÔNG TẢI SDK
-# DÙNG SDK CÓ SẴN TRONG MACOS RUNNER
-# HOẶC DÙNG CÁCH BUILD TRỰC TIẾP BẰNG CLANG
+# BUILD DYLIB BẰNG CLANG TRỰC TIẾP
+# KHÔNG CẦN THEOS
+# KHÔNG CẦN TẢI SDK
+# DÙNG SDK CÓ SẴN TRONG XCODE
 
 name: Build iOS Dylib
 
@@ -21,59 +22,29 @@ jobs:
       - name: Lay ma nguon
         uses: actions/checkout@v5
 
-      - name: Kiem tra workspace
+      - name: Build dylib bang clang
         run: |
-          echo "=== DANH SACH FILE ==="
+          echo "=== KIEM TRA FILE ==="
           ls -la
-          if [ -f "MenuDylib.m" ]; then
-            echo "FILE MenuDylib.m TON TAI"
-          else
-            echo "FILE MenuDylib.m KHONG TON TAI"
-          fi
-
-      - name: Build truc tiep bang clang
-        run: |
-          echo "=== KIEM TRA CLANG ==="
-          which clang
-          clang --version
-          
-          echo "=== KIEM TRA SDK iOS TRONG HE THONG ==="
-          ls -la /Applications/Xcode*.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/ 2>/dev/null || echo "Khong tim thay Xcode"
           
           echo "=== TIM SDK iOS ==="
-          find /Applications -name "iPhoneOS*.sdk" -type d 2>/dev/null | head -5
+          SDK_PATH=$(find /Applications -name "iPhoneOS.sdk" -type d 2>/dev/null | head -1)
+          echo "SDK PATH: $SDK_PATH"
           
-          echo "=== BUILD TRUC TIEP BANG CLANG ==="
-          cd ${GITHUB_WORKSPACE}
+          echo "=== BUILD ==="
+          clang -dynamiclib \
+            -arch arm64 \
+            -isysroot "$SDK_PATH" \
+            -mios-version-min=12.0 \
+            -fobjc-arc \
+            -Wno-deprecated-declarations \
+            -framework UIKit \
+            -framework Foundation \
+            -o MenuDylib.dylib \
+            MenuDylib.m
           
-          # Tim SDK iOS
-          SDK_PATH=$(find /Applications -name "iPhoneOS*.sdk" -type d 2>/dev/null | head -1)
-          
-          if [ -z "$SDK_PATH" ]; then
-            echo "KHONG TIM THAY SDK iOS"
-            echo "THU BUILD VOI MACOS SDK"
-            clang -dynamiclib \
-              -arch arm64 \
-              -isysroot $(xcrun --sdk macosx --show-sdk-path) \
-              -framework UIKit \
-              -framework Foundation \
-              -framework ObjectiveC \
-              -o MenuDylib.dylib \
-              MenuDylib.m
-          else
-            echo "TIM THAY SDK: $SDK_PATH"
-            clang -dynamiclib \
-              -arch arm64 \
-              -isysroot "$SDK_PATH" \
-              -framework UIKit \
-              -framework Foundation \
-              -framework ObjectiveC \
-              -o MenuDylib.dylib \
-              MenuDylib.m
-          fi
-          
-          echo "=== KIEM TRA KET QUA BUILD ==="
-          ls -la *.dylib 2>/dev/null || echo "KHONG CO FILE DYLIB"
+          echo "=== KET QUA ==="
+          ls -la MenuDylib.dylib
 
       - name: Tai file dylib
         uses: actions/upload-artifact@v4
