@@ -5,7 +5,7 @@
 # Bỏ hoàn toàn brew install
 # Tải SDK từ nguồn tin cậy
 
-name: Build iOS Dylib
+name:  iOS Dylib
 
 on:
   workflow_dispatch:
