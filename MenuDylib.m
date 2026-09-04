@@ -1,10 +1,11 @@
 // ============================================
 // FILE: MenuDylib.m
 // ============================================
-// MENU ĐẸP - DI CHUYỂN ĐƯỢC - MÀU RAINBOW
-// COPYRIGHT: HAI LAM
-// QUÉT OFFSET GAME THẬT + TỰ ĐỘNG TRẢ VỀ LOG
-// TƯƠNG THÍCH: ESIGN IOS (KHÔNG CẦN JAILBREAK)
+// ĐÃ SỬA:
+// 1. Hiển thị offset rõ ràng để copy được
+// 2. Hỗ trợ màn hình ngang (iPhone Xs)
+// 3. Menu tự động xoay theo hướng màn hình
+// 4. Thêm nút copy offset
 
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
@@ -16,6 +17,7 @@
 #import <sys/mman.h>
 #import <mach/mach.h>
 #import <QuartzCore/QuartzCore.h>
+#import <CoreGraphics/CoreGraphics.h>
 
 @interface MenuController : UIViewController
 
@@ -23,9 +25,11 @@
 @property (nonatomic, strong) UITextView *khungLog;
 @property (nonatomic, strong) UILabel *nhanTrangThai;
 @property (nonatomic, strong) UILabel *nhanBanQuyen;
+@property (nonatomic, strong) UIButton *nutCopy;
 @property (nonatomic, strong) UIPanGestureRecognizer *cuaChi;
 @property (nonatomic, assign) BOOL dangChay;
 @property (nonatomic, assign) CGPoint diemBatDau;
+@property (nonatomic, strong) NSMutableString *duLieuOffset;
 
 - (void)batTatAutoTimKiem;
 - (void)capNhatLog:(NSString *)noiDung;
@@ -33,6 +37,7 @@
 - (void)quetMauByte:(uint64_t)tuDiaChi denDiaChi:(uint64_t)denDiaChi;
 - (void)doiTrangThaiMenu:(UIButton *)nut;
 - (void)xuLyKeo:(UIPanGestureRecognizer *)cuChi;
+- (void)copyOffset;
 
 @end
 
@@ -40,6 +45,8 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+
+    self.duLieuOffset = [NSMutableString string];
 
     CAGradientLayer *gradient = [CAGradientLayer layer];
     gradient.frame = self.view.bounds;
@@ -77,13 +84,22 @@
     [self.view addSubview:self.nhanTrangThai];
 
     self.nutBatTat = [UIButton buttonWithType:UIButtonTypeSystem];
-    self.nutBatTat.frame = CGRectMake(60, 90, 200, 50);
+    self.nutBatTat.frame = CGRectMake(20, 90, 180, 50);
     [self.nutBatTat setTitle:@"BẬT AUTO TÌM OFFSET" forState:UIControlStateNormal];
     [self.nutBatTat setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     self.nutBatTat.backgroundColor = [UIColor colorWithRed:0.2 green:0.6 blue:0.2 alpha:1.0];
     self.nutBatTat.layer.cornerRadius = 10;
     [self.nutBatTat addTarget:self action:@selector(batTatAutoTimKiem) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:self.nutBatTat];
+
+    self.nutCopy = [UIButton buttonWithType:UIButtonTypeSystem];
+    self.nutCopy.frame = CGRectMake(210, 90, 90, 50);
+    [self.nutCopy setTitle:@"COPY" forState:UIControlStateNormal];
+    [self.nutCopy setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    self.nutCopy.backgroundColor = [UIColor colorWithRed:0.2 green:0.4 blue:0.8 alpha:1.0];
+    self.nutCopy.layer.cornerRadius = 10;
+    [self.nutCopy addTarget:self action:@selector(copyOffset) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:self.nutCopy];
 
     self.khungLog = [[UITextView alloc] initWithFrame:CGRectMake(10, 150, 300, 430)];
     self.khungLog.backgroundColor = [UIColor blackColor];
@@ -99,6 +115,17 @@
 
     self.dangChay = NO;
     [self capNhatLog:@"Menu đã sẵn sàng - © Hai Lam"];
+    [self capNhatLog:@"Bấm BẬT để quét offset"];
+}
+
+- (void)copyOffset {
+    if (self.duLieuOffset.length > 0) {
+        UIPasteboard *bangNhom = [UIPasteboard generalPasteboard];
+        bangNhom.string = self.duLieuOffset;
+        [self capNhatLog:@"✔ Đã copy toàn bộ offset vào clipboard"];
+    } else {
+        [self capNhatLog:@"Chưa có offset để copy"];
+    }
 }
 
 - (void)xuLyKeo:(UIPanGestureRecognizer *)cuChi {
@@ -218,7 +245,7 @@
     uint64_t viTri = tuDiaChi;
     NSInteger soLanTimThay = 0;
 
-    while (viTri < denDiaChi && soLanTimThay < 100) {
+    while (viTri < denDiaChi && soLanTimThay < 200) {
         if (viTri > 0x1000) {
             unsigned char duLieu[4];
 
@@ -230,7 +257,9 @@
                 (duLieu[0] == mauByte4[0] && duLieu[1] == mauByte4[1] && duLieu[2] == mauByte4[2] && duLieu[3] == mauByte4[3]) ||
                 (duLieu[0] == mauByte5[0] && duLieu[1] == mauByte5[1] && duLieu[2] == mauByte5[2] && duLieu[3] == mauByte5[3])) {
 
-                [self capNhatLog:[NSString stringWithFormat:@"✔ Tìm thấy offset tại: 0x%llx", viTri]];
+                NSString *offsetStr = [NSString stringWithFormat:@"0x%llx", viTri];
+                [self capNhatLog:[NSString stringWithFormat:@"✔ Offset: %@", offsetStr]];
+                [self.duLieuOffset appendFormat:@"%@\n", offsetStr];
                 soLanTimThay++;
             }
         }
@@ -242,6 +271,7 @@
         [self capNhatLog:@"Không tìm thấy mẫu byte trong vùng này"];
     } else {
         [self capNhatLog:[NSString stringWithFormat:@"Tổng cộng: %ld offset tìm thấy", (long)soLanTimThay]];
+        [self capNhatLog:@"Bấm nút COPY để copy tất cả offset"];
     }
 }
 
@@ -254,6 +284,15 @@
             [menu capNhatLog:@"Menu đã được mở"];
         }
     }
+}
+
+// Hỗ trợ xoay màn hình
+- (BOOL)shouldAutorotate {
+    return YES;
+}
+
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+    return UIInterfaceOrientationMaskAll;
 }
 
 @end
@@ -276,7 +315,18 @@ void khoiTaoMenu(void) {
         nutKichHoat.layer.borderColor = [UIColor cyanColor].CGColor;
 
         MenuController *menuDieuKhien = [[MenuController alloc] init];
-        menuDieuKhien.view.frame = CGRectMake(20, 180, 320, 600);
+        
+        // Tự điều chỉnh kích thước theo màn hình
+        CGFloat chieuRong = [UIScreen mainScreen].bounds.size.width;
+        CGFloat chieuCao = [UIScreen mainScreen].bounds.size.height;
+        
+        // Nếu màn hình ngang, đổi kích thước menu
+        if (chieuRong > chieuCao) {
+            menuDieuKhien.view.frame = CGRectMake(20, 80, 350, 350);
+        } else {
+            menuDieuKhien.view.frame = CGRectMake(20, 180, 320, 600);
+        }
+        
         menuDieuKhien.view.hidden = YES;
 
         [cuaSoMenu addSubview:menuDieuKhien.view];
@@ -289,5 +339,20 @@ void khoiTaoMenu(void) {
 
         cuaSoMenu.hidden = NO;
         [cuaSoMenu makeKeyAndVisible];
+        
+        // Lắng nghe sự kiện xoay màn hình
+        [[NSNotificationCenter defaultCenter] addObserverForName:UIDeviceOrientationDidChangeNotification
+                                                          object:nil
+                                                           queue:[NSOperationQueue mainQueue]
+                                                      usingBlock:^(NSNotification *note) {
+            CGFloat chieuRongMoi = [UIScreen mainScreen].bounds.size.width;
+            CGFloat chieuCaoMoi = [UIScreen mainScreen].bounds.size.height;
+            
+            if (chieuRongMoi > chieuCaoMoi) {
+                menuDieuKhien.view.frame = CGRectMake(20, 80, 350, 350);
+            } else {
+                menuDieuKhien.view.frame = CGRectMake(20, 180, 320, 600);
+            }
+        }];
     });
 }
