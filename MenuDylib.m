@@ -5,7 +5,6 @@
 // COPYRIGHT: HAI LAM
 // QUÉT OFFSET GAME THẬT + TỰ ĐỘNG TRẢ VỀ LOG
 // TƯƠNG THÍCH: ESIGN IOS (KHÔNG CẦN JAILBREAK)
-// LƯU Ý: DÙNG getsegmentdata ĐỂ QUÉT CHÍNH XÁC __TEXT
 
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
@@ -42,7 +41,6 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
-    // Nền menu với gradient
     CAGradientLayer *gradient = [CAGradientLayer layer];
     gradient.frame = self.view.bounds;
     gradient.colors = @[(id)[UIColor colorWithRed:0.1 green:0.1 blue:0.3 alpha:0.9].CGColor,
@@ -57,14 +55,12 @@
     self.view.layer.borderColor = [UIColor cyanColor].CGColor;
     self.view.clipsToBounds = YES;
 
-    // Nhãn bản quyền rainbow
     self.nhanBanQuyen = [[UILabel alloc] initWithFrame:CGRectMake(10, 10, 300, 30)];
     self.nhanBanQuyen.text = @"© HAI LAM";
     self.nhanBanQuyen.textAlignment = NSTextAlignmentCenter;
     self.nhanBanQuyen.font = [UIFont boldSystemFontOfSize:18];
     [self.view addSubview:self.nhanBanQuyen];
     
-    // Timer đổi màu rainbow cho copyright
     [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer *timer) {
         static int mauIndex = 0;
         mauIndex = (mauIndex + 1) % 7;
@@ -73,7 +69,6 @@
         self.nhanBanQuyen.textColor = mauRainbow[mauIndex];
     }];
 
-    // Nhãn trạng thái
     self.nhanTrangThai = [[UILabel alloc] initWithFrame:CGRectMake(20, 50, 280, 30)];
     self.nhanTrangThai.text = @"Trạng thái: TẮT";
     self.nhanTrangThai.textColor = [UIColor whiteColor];
@@ -81,7 +76,6 @@
     self.nhanTrangThai.font = [UIFont systemFontOfSize:16];
     [self.view addSubview:self.nhanTrangThai];
 
-    // Nút bật tắt
     self.nutBatTat = [UIButton buttonWithType:UIButtonTypeSystem];
     self.nutBatTat.frame = CGRectMake(60, 90, 200, 50);
     [self.nutBatTat setTitle:@"BẬT AUTO TÌM OFFSET" forState:UIControlStateNormal];
@@ -91,7 +85,6 @@
     [self.nutBatTat addTarget:self action:@selector(batTatAutoTimKiem) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:self.nutBatTat];
 
-    // Khung log
     self.khungLog = [[UITextView alloc] initWithFrame:CGRectMake(10, 150, 300, 430)];
     self.khungLog.backgroundColor = [UIColor blackColor];
     self.khungLog.textColor = [UIColor greenColor];
@@ -100,7 +93,6 @@
     self.khungLog.layer.cornerRadius = 5;
     [self.view addSubview:self.khungLog];
 
-    // Thêm cử chỉ kéo để di chuyển menu
     self.cuaChi = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(xuLyKeo:)];
     [self.view addGestureRecognizer:self.cuaChi];
     self.diemBatDau = CGPointZero;
@@ -122,7 +114,6 @@
     }
     
     if (cuChi.state == UIGestureRecognizerStateEnded) {
-        // Giữ menu trong màn hình
         CGPoint tam = view.center;
         CGSize kichThuoc = view.superview.bounds.size;
         CGSize kichThuocMenu = view.bounds.size;
@@ -193,7 +184,6 @@
                 [tenImageStr containsString:@"FreeFire"] ||
                 [tenImageStr containsString:@"PUBG"]) {
 
-                // Lấy địa chỉ __TEXT segment chính xác
                 unsigned long kichThuocText = 0;
                 uint8_t *batDauText = getsegmentdata((const struct mach_header_64 *)headerImage, "__TEXT", &kichThuocText);
                 
@@ -219,12 +209,11 @@
 }
 
 - (void)quetMauByte:(uint64_t)tuDiaChi denDiaChi:(uint64_t)denDiaChi {
-    // Mẫu byte ARM64 phổ biến trong game Unity/IL2CPP
-    unsigned char mauByte1[] = {0xFD, 0x7B, 0xBF, 0xA9}; // STP X29, X30, [SP, #-0x10]!
-    unsigned char mauByte2[] = {0xFD, 0x03, 0x00, 0x91}; // MOV X29, SP
-    unsigned char mauByte3[] = {0x08, 0x00, 0x40, 0xF9}; // LDR X8, [X0]
-    unsigned char mauByte4[] = {0x00, 0x00, 0x80, 0xD2}; // MOV X0, #0
-    unsigned char mauByte5[] = {0xC0, 0x03, 0x5F, 0xD6}; // RET
+    unsigned char mauByte1[] = {0xFD, 0x7B, 0xBF, 0xA9};
+    unsigned char mauByte2[] = {0xFD, 0x03, 0x00, 0x91};
+    unsigned char mauByte3[] = {0x08, 0x00, 0x40, 0xF9};
+    unsigned char mauByte4[] = {0x00, 0x00, 0x80, 0xD2};
+    unsigned char mauByte5[] = {0xC0, 0x03, 0x5F, 0xD6};
 
     uint64_t viTri = tuDiaChi;
     NSInteger soLanTimThay = 0;
