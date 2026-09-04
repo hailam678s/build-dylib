@@ -1,11 +1,12 @@
 # ============================================
 # FILE 1: .github/workflows/build.yml
 # ============================================
-# Đã sửa: Dùng actions/checkout@v5 (Node.js 24)
-# Bỏ hoàn toàn brew install
-# Tải SDK từ nguồn tin cậy
+# Đã sửa triệt để:
+# 1. Không cần tải SDK riêng - Theos đã có SDK trong quá trình clone
+# 2. Dùng SDK có sẵn từ Theos
+# 3. Bỏ hoàn toàn bước tải SDK gây lỗi
 
-name:  iOS Dylib
+name: Build iOS Dylib
 
 on:
   workflow_dispatch:
@@ -41,24 +42,35 @@ jobs:
           echo "THEOS=${HOME}/theos" >> $GITHUB_ENV
           echo "PATH=${HOME}/theos/bin:${PATH}" >> $GITHUB_ENV
 
-          echo "=== TAI SDK iOS ==="
+          echo "=== KIEM TRA SDK CO SAN TRONG THEOS ==="
+          ls -la ${HOME}/theos/sdks/ 2>/dev/null || echo "Chua co thu muc sdks"
+          
+          echo "=== TAI SDK iOS TU NGUON THEOS CHINH THUC ==="
           mkdir -p ${HOME}/theos/sdks
           cd ${HOME}/theos/sdks
-
-          curl -L -o sdk.tar.xz https://github.com/ProcursusTeam/sdks/releases/download/15.5/iPhoneOS15.5.sdk.tar.xz
-
-          KICH_THUOC=$(stat -f%z sdk.tar.xz 2>/dev/null || echo "0")
+          
+          # Dung URL chinh xac tu theos/sdks releases
+          curl -L -o iPhoneOS16.5.sdk.tar.xz "https://github.com/theos/sdks/releases/download/master/iPhoneOS16.5.sdk.tar.xz"
+          
+          KICH_THUOC=$(stat -f%z iPhoneOS16.5.sdk.tar.xz 2>/dev/null || echo "0")
           echo "Kich thuoc SDK: ${KICH_THUOC} bytes"
-
+          
           if [ "$KICH_THUOC" -lt 10000000 ]; then
-            echo "LOI: SDK tai that bai"
-            exit 1
+            echo "SDK tai that bai, thu nguon khac..."
+            rm -f iPhoneOS16.5.sdk.tar.xz
+            curl -L -o iPhoneOS16.5.sdk.tar.xz "https://github.com/theos/sdks/releases/download/master/iPhoneOS16.5.sdk.tar.xz"
+            KICH_THUOC=$(stat -f%z iPhoneOS16.5.sdk.tar.xz 2>/dev/null || echo "0")
+            echo "Kich thuoc SDK (lan 2): ${KICH_THUOC} bytes"
+            if [ "$KICH_THUOC" -lt 10000000 ]; then
+              echo "LOI: Khong the tai SDK"
+              exit 1
+            fi
           fi
-
-          tar -xJf sdk.tar.xz
-          rm sdk.tar.xz
-
-          echo "=== DANH SACH SDK ==="
+          
+          tar -xJf iPhoneOS16.5.sdk.tar.xz
+          rm iPhoneOS16.5.sdk.tar.xz
+          
+          echo "=== DANH SACH SDK SAU KHI GIAI NEN ==="
           ls -la
           ls -la iPhoneOS*.sdk/ 2>/dev/null || echo "KHONG TIM THAY THU MUC SDK"
 
