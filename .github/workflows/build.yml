@@ -1,1 +1,104 @@
 
+# ============================================
+# FILE: .github/workflows/build.yml
+# ============================================
+name: Build iOS Dylib
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Lay ma nguon
+        uses: actions/checkout@v4
+
+      - name: Kiem tra workspace
+        run: |
+          echo "=== DANH SACH FILE TRONG REPO ==="
+          ls -la
+          echo "=== KIEM TRA FILE MenuDylib.m ==="
+          if [ -f "MenuDylib.m" ]; then
+            echo "FILE MenuDylib.m TON TAI"
+            wc -l MenuDylib.m
+          else
+            echo "LOI: FILE MenuDylib.m KHONG TON TAI TRONG REPO"
+            echo "Ban can commit file nay vao goc repo truoc khi build."
+            exit 1
+          fi
+
+      - name: Cai dat Theos
+        run: |
+          echo "=== CLONE THEOS ==="
+          git clone --recursive https://github.com/theos/theos.git ${HOME}/theos
+          echo "THEOS=${HOME}/theos" >> $GITHUB_ENV
+          echo "PATH=${HOME}/theos/bin:${PATH}" >> $GITHUB_ENV
+
+          echo "=== TAI SDK iOS ==="
+          mkdir -p ${HOME}/theos/sdks
+          cd ${HOME}/theos/sdks
+
+          SDK_TAG="master-146e41f"
+          SDK_VERSION="16.5"
+          SDK_URL="https://github.com/theos/sdks/releases/download/${SDK_TAG}/iPhoneOS${SDK_VERSION}.sdk.tar.xz"
+
+          echo "Dang tai: ${SDK_URL}"
+          curl -fL --retry 3 --retry-delay 5 -o sdk.tar.xz "${SDK_URL}"
+
+          KICH_THUOC=$(stat -f%z sdk.tar.xz 2>/dev/null || echo "0")
+          echo "Kich thuoc SDK: ${KICH_THUOC} bytes"
+          if [ "$KICH_THUOC" -lt 10000000 ]; then
+            echo "LOI: SDK tai that bai (file qua nho, co the la trang loi)"
+            cat sdk.tar.xz | head -c 300
+            exit 1
+          fi
+
+          tar -xJf sdk.tar.xz
+          rm sdk.tar.xz
+
+          echo "=== DANH SACH SDK ==="
+          ls -la
+          ls -la iPhoneOS*.sdk/ 2>/dev/null || echo "KHONG TIM THAY THU MUC SDK"
+
+      - name: Tao cau truc du an
+        run: |
+          echo "=== TAO THU MUC DU AN ==="
+          mkdir -p ${HOME}/du_an/MenuDylib
+
+          echo "=== TAO MAKEFILE ==="
+          cat > ${HOME}/du_an/MenuDylib/Makefile << 'EOF'
+          export ARCHS = arm64
+          export TARGET = iphone:clang:16.5:12.0
+          include $(THEOS)/makefiles/common.mk
+          LIBRARY_NAME = MenuDylib
+          MenuDylib_FILES = MenuDylib.m
+          MenuDylib_FRAMEWORKS = UIKit Foundation
+          MenuDylib_LDFLAGS = -dynamiclib
+          include $(THEOS_MAKE_PATH)/library.mk
+          EOF
+
+          echo "=== COPY MA NGUON ==="
+          cp ${GITHUB_WORKSPACE}/MenuDylib.m ${HOME}/du_an/MenuDylib/MenuDylib.m
+          echo "DA COPY MenuDylib.m"
+
+          echo "=== NOI DUNG MAKEFILE ==="
+          cat ${HOME}/du_an/MenuDylib/Makefile
+
+      - name: Build dylib
+        run: |
+          echo "=== BAT DAU BUILD ==="
+          cd ${HOME}/du_an/MenuDylib
+          make package 2>&1
+          echo "=== KIEM TRA KET QUA ==="
+          find ${HOME}/du_an -name "*.dylib" -type f
+
+      - name: Tai file dylib
+        uses: actions/upload-artifact@v4
+        with:
+          name: MenuDylib
+          path: |
+            **/*.dylib
+          if-no-files-found: error
